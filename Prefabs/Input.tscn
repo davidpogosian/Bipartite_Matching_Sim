@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=2]
+
+[ext_resource path="res://Fonts/Merriweather_theme.tres" type="Theme" id=1]
+
+[node name="LineEdit" type="LineEdit"]
+margin_left = 60.0
+margin_top = 38.0
+margin_right = 203.0
+margin_bottom = 69.0
+theme = ExtResource( 1 )
+expand_to_text_length = true
+placeholder_text = "enter number"
