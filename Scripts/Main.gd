@@ -1,30 +1,34 @@
 extends Node
 
+# textures for dots
+var green_dot = preload('res://Textures/green_dot.png')
+var black_dot = preload('res://Textures/black_dot.png')
+var blue_dot = preload('res://Textures/tickmark.png')
+
+# prefabs
+var dot = preload('res://Prefabs/Dot.tscn')
 var panel = preload('res://Prefabs/Panel.tscn')
 var button = preload('res://Prefabs/Button.tscn')
 var button2 = preload('res://Prefabs/Button2.tscn')
 var disappearing = preload('res://Prefabs/Disappearing_Button.tscn')
-var panels = []
+
 var MAX_VERTICES = 10
 var PANEL_SPREAD = 600
 var PANEL_SHIFT = 500
+
+var panels = []
 var first_panel = null
 
-# make extra panels copy first panel
-# save and load json
-
 func _ready():
-	# ///////////////// #
-	var test_edges = [[0, 10], [0, 13], [1, 12], [1, 15], [16, 1], [2, 11], [2, 13], [14, 2], [3, 11], [3, 16], [4, 14], [15, 4], [4, 16], [5, 12], [5, 15], [6, 15], [6, 16]]
-	var u_vertices = 7
-	var v_vertices = 7
-	#hopcroft_karp(test_edges, u_vertices, v_vertices)
-	# ///////////////// #
+	# graph
+	for i in range(20):
+		make_dot(Vector2(i * 20, 0), black_dot)
+		make_dot(Vector2(0, i * 20), black_dot)
 	
 	# run button
 	var submit_button = button2.instance()
 	submit_button.set_text('Launch')
-	submit_button.set_position(Vector2(0, -10))
+	submit_button.set_position(Vector2(0, -50))
 	submit_button.connect('pressed', self, 'run')
 	add_child(submit_button)
 	
@@ -42,6 +46,12 @@ func _ready():
 		add_button.set_position(Vector2(PANEL_SHIFT + PANEL_SPREAD * i + PANEL_SPREAD, 0))
 		add_child(add_button)
 
+func make_dot(pos, texture):
+	var new_dot = dot.instance()
+	new_dot.get_node("Sprite").set_texture(texture)
+	new_dot.set_position(pos)
+	add_child(new_dot)
+
 func new_panel(algo, pos):
 	var new_panel = panel.instance()
 	new_panel.set_algorithm(algo)
@@ -56,6 +66,14 @@ func run():
 		var algo = panel.get_algorithm()
 		if algo == 'hopcroft_karp':
 			edges = hopcroft_karp(panel.get_edges(), panel.get_u(), panel.get_v())
+			
+			# graph output
+			for edge in panel.get_edges():
+				if edge in edges:
+					make_dot(Vector2(edge[0] * 20, edge[1] * 20), green_dot)
+				else:
+					make_dot(Vector2(edge[0] * 20, edge[1] * 20), blue_dot)
+					
 		if algo == 'david':
 			edges = david(panel.get_edges())
 		panel.launch(edges)

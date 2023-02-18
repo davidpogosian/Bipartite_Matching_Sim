@@ -28,7 +28,12 @@ func _vertex_pressed(_viewport, event, _shape_idx):
 			line.set_begin_cap_mode(Line2D.LINE_CAP_ROUND)
 			line.set_end_cap_mode(Line2D.LINE_CAP_ROUND)
 			panel.add_child(line)
-			panel.add_connection([grabbed.get_index(), index, line])
+			var new_connection = null
+			if index < grabbed.get_index():
+				new_connection = [index, grabbed.get_index(), line]
+			else:
+				new_connection = [grabbed.get_index(), index, line]
+			panel.add_connection(new_connection)
 
 func _process(delta):
 	pass

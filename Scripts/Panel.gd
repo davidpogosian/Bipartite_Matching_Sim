@@ -212,7 +212,8 @@ func get_edges():
 	
 func launch(matching):
 	for edge in matching:
-		connections[edges.find(edge)][2].set_texture(match_texture) #nonsense here
+		connections[edges.find(edge)][2].set_texture(match_texture)
+	
 	#var json_data = JSON.print(matching)
 	#print('data: ', JSON.parse(json_data).result)
 
