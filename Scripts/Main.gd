@@ -18,7 +18,6 @@ var PANEL_SHIFT = 500
 
 var panels = []
 var first_panel = null
-
 func _ready():
 	# graph
 	for i in range(20):
@@ -39,10 +38,11 @@ func _ready():
 	first_panel.set_position(Vector2(PANEL_SHIFT, 0))
 	add_child(first_panel)
 	
+	var algorithms = ['hopcroft_karp', 'augmenting-path']
 	# subsequent panels:
 	for i in range(2):
 		var add_button = disappearing.instance()
-		add_button.set_algo('hopcroft_karp')
+		add_button.set_algo(algorithms[i])
 		add_button.set_position(Vector2(PANEL_SHIFT + PANEL_SPREAD * i + PANEL_SPREAD, 0))
 		add_child(add_button)
 
@@ -66,30 +66,129 @@ func run():
 		var algo = panel.get_algorithm()
 		if algo == 'hopcroft_karp':
 			edges = hopcroft_karp(panel.get_edges(), panel.get_u(), panel.get_v())
-			
+
 			# graph output
 			for edge in panel.get_edges():
 				if edge in edges:
 					make_dot(Vector2(edge[0] * 20, edge[1] * 20), green_dot)
 				else:
 					make_dot(Vector2(edge[0] * 20, edge[1] * 20), blue_dot)
-					
+
 		if algo == 'david':
 			edges = david(panel.get_edges())
+			
+		if algo == 'augmenting-path':
+			var U = []
+			var W = []
+			for u in range(panel.get_u()):
+				U.append(u)
+			for w in range(MAX_VERTICES, panel.get_v() + MAX_VERTICES):
+				W.append(w)
+			edges = augmenting_path(panel.get_edges(), U, W)
 		panel.launch(edges)
 
+# augmenting path algo
+func deep_copy(from, to):
+	for item in from:
+		to.append(item)
+
+func augmenting_path(edges, vertices_u, vertices_w):
+	var free_u = []
+	var free_w = []
+	deep_copy(vertices_u, free_u)
+	deep_copy(vertices_w, free_w)
+	
+	var M = []
+	var P = find_aug_path(edges, M, free_u, free_w)
+	while (P != null):
+		M = symmetric_difference(M, P)
+		
+		for edge in M:
+			if edge[0] in free_u:
+				free_u.erase( edge[0] )
+			if edge[1] in free_w:
+				free_w.erase( edge[1] )
+		
+		P = find_aug_path(edges, M, free_u, free_w)
+	return M
+
+func find_aug_path(edges, M, free_u, free_w):
+	var bfs_edges = []
+	for edge in edges:
+		if edge in M:
+			bfs_edges.append( [edge[1], edge[0]] )
+		else:
+			bfs_edges.append( edge ) # this had to be swapped for some reason
+	for u in free_u:
+		bfs_edges.append( [-1, u] )
+	for w in free_w:
+		bfs_edges.append( [w, -2] )
+	return bfs_path(bfs_edges, -1, -2)
+
+func symmetric_difference(M, P):
+	for edge in P:
+		if not edge in M:
+			M.append(edge)
+		else:
+			M.erase(edge)
+	# even though arrays are passed by reference, I just wanna return
+	return M
+
+func bfs_path(edges, s, t):
+	var neighbors = {} # neighbors[start] = [end]
+	# setting up neighbors dict
+	for edge in edges:
+		if edge[0] in neighbors:
+			neighbors[ edge[0] ].append( edge[1] )
+		else:
+			neighbors[ edge[0] ] = [ edge[1] ]
+	
+	var queue = [s]
+	var parentof = {}
+	var found = false
+	
+	while len(queue) != 0:
+		#break
+		var current = queue[0]
+		if current == t:
+			found = true
+			break
+		queue.pop_front()
+		if not current in neighbors:
+			continue
+		for neighbor in neighbors[current]:
+			if not neighbor in parentof:
+				queue.push_back(neighbor)
+				parentof[neighbor] = current
+	if found:
+		var steps = []
+		var current = t
+		while parentof[current] != s:
+			steps.append(parentof[current])
+			current = parentof[current]
+		
+		var P = []
+		for i in range(len(steps) - 1):
+			if steps[i] < steps[i + 1]:
+				P.append( [steps[i], steps[i + 1]] )
+			else:
+				P.append( [steps[i + 1], steps[i]] )
+				
+		return P
+		
+	return null
+
+# this algorithm operates on the assumption that if you have a completed
+# matching one of them is between the highest vertex and the lowest connected vertex
+# approximation algo at best
 func vertex_compare(a, b):
 	if b[1] <= a[1]:
 		return true
 	return false
 
-# this algorithm operates on the assumption that if you have a completed
-# matching one of them is between the highest vertex and the lowest connected vertex
-
-# I think I need to refresh the dictionary-array after every iteration
 func david(edges):
 	var answer = []
-	print('EDGES ', edges)
+	#print('EDGES ', edges)
 	var vertex_ranks = {} # [index, number_of_edges]
 	for edge in edges:
 		if edge[0] in vertex_ranks:
@@ -101,7 +200,7 @@ func david(edges):
 			vertex_ranks[edge[1]] += 1
 		else:
 			vertex_ranks[edge[1]] = 1
-	print('DICT: ', vertex_ranks)
+	#print('DICT: ', vertex_ranks)
 	var keys = vertex_ranks.keys()
 	var values = vertex_ranks.values()
 	var array = []
@@ -109,7 +208,7 @@ func david(edges):
 		array.append([keys[k], values[k]])
 	#print(array)
 	array.sort_custom(self, 'vertex_compare')
-	print('ARRAY: ', array)
+	#print('ARRAY: ', array)
 	
 	# go through array
 	# find lowest-ranked vertex that is connected to first vertex
@@ -128,7 +227,7 @@ func david(edges):
 				vertex_ranks[edge[1]] += 1
 			else:
 				vertex_ranks[edge[1]] = 1
-		print('DICT: ', vertex_ranks)
+		#print('DICT: ', vertex_ranks)
 		keys = vertex_ranks.keys()
 		values = vertex_ranks.values()
 		array = []
@@ -137,7 +236,7 @@ func david(edges):
 		#print(array)
 		array.sort_custom(self, 'vertex_compare')
 		
-		print('===========================')
+		#print('===========================')
 		var special = array[0][0]
 		var min_vertex = null
 		var min_edges = 9_999
@@ -164,7 +263,7 @@ func david(edges):
 			var temp_edges = []
 			for edge in edges:
 				if special in edge:
-					print('removing edge')
+					#print('removing edge')
 					pass
 				else:
 					temp_edges.append(edge)
@@ -174,7 +273,7 @@ func david(edges):
 			
 		# min vertex found
 		answer.append(best_edge)
-		print('BEST EDGE: ', best_edge)
+		#print('BEST EDGE: ', best_edge)
 		
 		# get rid of vertices
 		var temp_array = []
@@ -192,13 +291,13 @@ func david(edges):
 				temp_edges.append(edge)
 		edges = temp_edges
 		
-		print('NEW EDGES: ', edges)
-		print('NEW ARRAY: ', array)
-	print('ANSWER:', answer)  
+		#print('NEW EDGES: ', edges)
+		#print('NEW ARRAY: ', array)
+	#print('ANSWER:', answer)  
 	
 	return answer
 
-# Hopcroft-Karp Algo
+# Hopcroft-Karp Algo (not really)
 func hopcroft_karp(free_edges, u_vertices: int, v_vertices: int):
 	print('hopcroft-karp running...')
 	var original_edges = []
@@ -230,7 +329,7 @@ func hopcroft_karp(free_edges, u_vertices: int, v_vertices: int):
 				used_v.append(matched_v)
 				
 				# remove v from free
-				print('u: ', u, ' removed v:', matched_v)
+				#print('u: ', u, ' removed v:', matched_v)
 				free_v.erase(matched_v)
 				
 				break
@@ -268,13 +367,13 @@ func hopcroft_karp(free_edges, u_vertices: int, v_vertices: int):
 	
 	
 	# DEBUG #1
-	print('OG: ', original_edges)
-	print('free_u: ', free_u)
-	print('used_u: ', used_u)
-	print('free_v: ', free_v)
-	print('used_v: ', used_v)
-	print('matched_edges: ', matched_edges)
-	print('free_edges: ', free_edges)
+	#print('OG: ', original_edges)
+	#print('free_u: ', free_u)
+	#print('used_u: ', used_u)
+	#print('free_v: ', free_v)
+	#print('used_v: ', used_v)
+	#print('matched_edges: ', matched_edges)
+	#print('free_edges: ', free_edges)
 	
 	# look for augmenting paths BFS (queue) =====================
 	
@@ -299,7 +398,7 @@ func hopcroft_karp(free_edges, u_vertices: int, v_vertices: int):
 		visited.append(false)
 		
 	while len(queue) != 0:
-		print('at: ', queue[0])
+		#print('at: ', queue[0])
 		
 		# mark current vertex visited
 		visited[queue[0]] = true
@@ -339,9 +438,9 @@ func hopcroft_karp(free_edges, u_vertices: int, v_vertices: int):
 		
 	# figure out which edges to switch around
 	
-	print('memory: ', memory)
+	#print('memory: ', memory)
 	
-	print('terminate: ', terminate)
+	#print('terminate: ', terminate)
 	
 	if not terminate:
 		return matched_edges
@@ -377,7 +476,7 @@ func hopcroft_karp(free_edges, u_vertices: int, v_vertices: int):
 					found = true
 					break
 		
-		print('path: ', path)
+		#print('path: ', path)
 		
 		if found:
 			# remove path from memory		
@@ -390,7 +489,7 @@ func hopcroft_karp(free_edges, u_vertices: int, v_vertices: int):
 			var end = path[v]
 			while end != null:
 				
-				print('invert edge: ', start, ' ', end)
+				#print('invert edge: ', start, ' ', end)
 				
 				# edge [start, end]
 				var flip_edge = [start, end] if [start, end] in original_edges else [end, start]
@@ -404,5 +503,5 @@ func hopcroft_karp(free_edges, u_vertices: int, v_vertices: int):
 				
 				start = end
 				end = path[end]
-	print('answer2: ', matched_edges)
+	#print('answer2: ', matched_edges)
 	return matched_edges
